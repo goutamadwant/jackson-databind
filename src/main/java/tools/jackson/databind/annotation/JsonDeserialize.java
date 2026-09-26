@@ -98,6 +98,24 @@ public @interface JsonDeserialize
     public Class<?> builder() default Void.class;
 
     /**
+     * External class that declares static factory methods for constructing
+     * values of the annotated type. Eligible methods must be annotated with
+     * {@link com.fasterxml.jackson.annotation.JsonCreator} and return a type
+     * assignable to the annotated type.
+     *<p>
+     * External methods participate in the same Creator selection and conflict
+     * detection as constructors and factory methods declared by the target type.
+     *<p>
+     * This is useful for types whose constructors and factory methods cannot
+     * be modified, including third-party and interface types. The same setting
+     * can be supplied programmatically with
+     * {@link tools.jackson.databind.cfg.MutableConfigOverride#setCreatorFactory}.
+     *
+     * @since 3.3
+     */
+    public Class<?> creatorFactory() default Void.class;
+
+    /**
      * Optional property for specifying the prefix used for builder
      * "with" methods when using {@link #builder()}. When set to a non-default value
      * (something other than {@link #USE_DEFAULT_PREFIX}), this overrides any

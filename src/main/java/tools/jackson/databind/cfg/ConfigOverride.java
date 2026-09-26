@@ -65,6 +65,14 @@ public abstract class ConfigOverride
      */
     protected Boolean _mergeable;
 
+    /**
+     * External class containing static {@code @JsonCreator} factory methods
+     * for values of the configured type.
+     *
+     * @since 3.3
+     */
+    protected Class<?> _creatorFactory;
+
     protected ConfigOverride() { }
     protected ConfigOverride(ConfigOverride src) {
         _format = src._format;
@@ -75,6 +83,7 @@ public abstract class ConfigOverride
         _visibility = src._visibility;
         _isIgnoredType = src._isIgnoredType;
         _mergeable = src._mergeable;
+        _creatorFactory = src._creatorFactory;
     }
 
     /**
@@ -107,6 +116,11 @@ public abstract class ConfigOverride
 
     public Boolean getMergeable() { return _mergeable; }
 
+    /**
+     * @since 3.3
+     */
+    public Class<?> getCreatorFactory() { return _creatorFactory; }
+
     @Override
     public String toString() {
         return new StringBuilder("[ConfigOverrides ")
@@ -117,6 +131,7 @@ public abstract class ConfigOverride
                 .append(", nulls=").append(_ignorals)
                 .append(", visibility=").append(_visibility)
                 .append(", merge=").append(_mergeable)
+                .append(", creatorFactory=").append(_creatorFactory)
                 .toString();
     }
 

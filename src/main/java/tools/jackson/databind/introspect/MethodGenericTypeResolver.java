@@ -39,7 +39,21 @@ final class MethodGenericTypeResolver
             JavaType requestedType,
             TypeFactory typeFactory,
             TypeResolutionContext emptyTypeResCtxt) {
-        TypeBindings newTypeBindings = bindMethodTypeParameters(candidate, requestedType, emptyTypeResCtxt);
+        JavaType bindingTarget = requestedType;
+        Type genericReturnType = candidate.getGenericReturnType();
+        if (genericReturnType instanceof ParameterizedType parameterizedReturnType
+                && parameterizedReturnType.getRawType() instanceof Class<?> rawReturnType
+                && !requestedType.hasRawClass(rawReturnType)) {
+            if (!requestedType.getRawClass().isAssignableFrom(rawReturnType)) {
+                return emptyTypeResCtxt;
+            }
+            try {
+                bindingTarget = typeFactory.constructSpecializedType(requestedType, rawReturnType);
+            } catch (IllegalArgumentException e) {
+                return emptyTypeResCtxt;
+            }
+        }
+        TypeBindings newTypeBindings = bindMethodTypeParameters(candidate, bindingTarget, emptyTypeResCtxt);
         return newTypeBindings == null
                 ? emptyTypeResCtxt
                 : new TypeResolutionContext.Basic(typeFactory, newTypeBindings);

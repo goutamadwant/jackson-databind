@@ -24,6 +24,7 @@ final class AnnotatedCreatorCollector
     // // // Configuration
 
     private final JavaType _primaryType;
+    private final JavaType _creatorTargetType;
     private final TypeResolutionContext _typeContext;
 
     private final boolean _collectAnnotations;
@@ -35,8 +36,16 @@ final class AnnotatedCreatorCollector
     AnnotatedCreatorCollector(MapperConfig<?> config, JavaType type,
             TypeResolutionContext tc, boolean collectAnnotations)
     {
+        this(config, type, type, tc, collectAnnotations);
+    }
+
+    AnnotatedCreatorCollector(MapperConfig<?> config, JavaType type,
+            JavaType creatorTargetType, TypeResolutionContext tc,
+            boolean collectAnnotations)
+    {
         super(config);
         _primaryType = type;
+        _creatorTargetType = creatorTargetType;
         _typeContext = tc;
         _collectAnnotations = collectAnnotations;
     }
@@ -51,6 +60,22 @@ final class AnnotatedCreatorCollector
         // Constructor also always members of resolved class, parent == resolution context
         return new AnnotatedCreatorCollector(config, type, tc, collectAnnotations)
                 .collect(primaryMixIn);
+    }
+
+    static List<AnnotatedMethod> collectFactoryMethods(MapperConfig<?> config,
+            TypeResolutionContext tc, JavaType factoryType, JavaType targetType,
+            Class<?> primaryMixIn, boolean collectAnnotations)
+    {
+        collectAnnotations |= (primaryMixIn != null);
+        AnnotatedCreatorCollector collector = new AnnotatedCreatorCollector(
+                config, factoryType, targetType, tc, collectAnnotations);
+        List<AnnotatedMethod> factories = collector._findPotentialFactories(
+                factoryType, primaryMixIn);
+        if (collectAnnotations) {
+            factories.removeIf(factory ->
+                    collector._intr.hasIgnoreMarker(config, factory));
+        }
+        return factories;
     }
 
     Creators collect(Class<?> primaryMixIn)
@@ -234,9 +259,13 @@ final class AnnotatedCreatorCollector
                 MemberKey key = new MemberKey(mixinFactory);
                 for (int i = 0; i < factoryCount; ++i) {
                     if (key.equals(methodKeys[i])) {
+                        TypeResolutionContext typeResCtxt = MethodGenericTypeResolver
+                                .narrowMethodTypeParameters(candidates.get(i),
+                                        _creatorTargetType, _config.getTypeFactory(),
+                                        initialTypeResCtxt);
                         result.set(i,
                                 constructFactoryCreator(candidates.get(i),
-                                        initialTypeResCtxt, mixinFactory));
+                                        typeResCtxt, mixinFactory));
                         break;
                     }
                 }
@@ -252,7 +281,7 @@ final class AnnotatedCreatorCollector
                 //   (if generic types involved)
                 // 23-Aug-2021, tatu: ... is this still needed, wrt un-fix in [databind#3220]?
                 TypeResolutionContext typeResCtxt = MethodGenericTypeResolver.narrowMethodTypeParameters(
-                        candidate, type, _config.getTypeFactory(), initialTypeResCtxt);
+                        candidate, _creatorTargetType, _config.getTypeFactory(), initialTypeResCtxt);
                 result.set(i,
                         constructFactoryCreator(candidate, typeResCtxt, null));
             }

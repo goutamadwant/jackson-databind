@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import tools.jackson.databind.*;
 import tools.jackson.databind.cfg.ConstructorDetector;
+import tools.jackson.databind.cfg.ConfigOverride;
 import tools.jackson.databind.cfg.HandlerInstantiator;
 import tools.jackson.databind.cfg.MapperConfig;
 import tools.jackson.databind.deser.impl.UnwrappedPropertyHandler;
@@ -734,7 +735,14 @@ public class POJOPropertiesCollector
         // First, resolve explicit annotations for all potential Creators
         // (but do NOT filter out DISABLED ones yet!)
         List<PotentialCreator> constructors = _collectCreators(_classDef.getConstructors());
-        List<PotentialCreator> factories = _collectCreators(_classDef.getFactoryMethods());
+        List<PotentialCreator> factories = new ArrayList<>(
+                _collectCreators(_classDef.getFactoryMethods()));
+        if (!_forSerialization) {
+            Class<?> creatorFactory = _findCreatorFactory();
+            if (creatorFactory != null && creatorFactory != _type.getRawClass()) {
+                factories.addAll(_collectExternalFactoryCreators(creatorFactory));
+            }
+        }
 
         // Note! 0-param ("default") constructor is NOT included in 'constructors':
         PotentialCreator zeroParamsConstructor;
@@ -881,6 +889,65 @@ public class POJOPropertiesCollector
             result.add(_potentialCreator(ctor));
         }
         return (result == null) ? Collections.emptyList() : result;
+    }
+
+    private Class<?> _findCreatorFactory()
+    {
+        ConfigOverride override = _config.getConfigOverride(_type.getRawClass());
+        Class<?> creatorFactory = override.getCreatorFactory();
+        if (creatorFactory == null && _useAnnotations) {
+            creatorFactory = _annotationIntrospector.findCreatorFactory(_config, _classDef);
+        }
+        return creatorFactory;
+    }
+
+    private List<PotentialCreator> _collectExternalFactoryCreators(Class<?> creatorFactory)
+    {
+        JavaType factoryType = _config.constructType(creatorFactory);
+        AnnotatedClass factoryClass = AnnotatedClassResolver.resolve(
+                _config, factoryType, _config);
+        List<PotentialCreator> result = new ArrayList<>();
+        List<String> incompatibleReturnTypes = new ArrayList<>();
+        Class<?> targetType = _type.getRawClass();
+
+        List<AnnotatedMethod> methods = AnnotatedCreatorCollector.collectFactoryMethods(
+                _config, factoryClass, factoryType, _type,
+                _config.findMixInClassFor(creatorFactory), _useAnnotations);
+        for (AnnotatedMethod method : methods) {
+            PotentialCreator creator = _potentialCreator(method);
+            if (!creator.isAnnotated()
+                    || creator.creatorMode() == JsonCreator.Mode.DISABLED) {
+                continue;
+            }
+            JavaType returnType = method.getType();
+            if (!_isCompatibleFactoryReturn(returnType, targetType)) {
+                incompatibleReturnTypes.add(returnType.toCanonical());
+                continue;
+            }
+            result.add(creator);
+        }
+        if (result.isEmpty()) {
+            throw new IllegalArgumentException(String.format(
+                    "External Creator factory `%s` has no enabled static @JsonCreator methods "
+                    +"returning a type assignable to `%s`%s",
+                    creatorFactory.getName(), targetType.getName(),
+                    incompatibleReturnTypes.isEmpty() ? ""
+                            : " (incompatible return types: " + incompatibleReturnTypes + ")"));
+        }
+        return result;
+    }
+
+    private boolean _isCompatibleFactoryReturn(JavaType returnType, Class<?> targetType)
+    {
+        if (!targetType.isAssignableFrom(returnType.getRawClass())) {
+            return false;
+        }
+        if (!_type.hasGenericTypes()) {
+            return true;
+        }
+        JavaType targetView = returnType.findSuperType(targetType);
+        return targetView == null || targetView.getBindings().isEmpty()
+                || _type.getBindings().equals(targetView.getBindings());
     }
 
     private PotentialCreator _potentialCreator(AnnotatedWithParams ctor) {

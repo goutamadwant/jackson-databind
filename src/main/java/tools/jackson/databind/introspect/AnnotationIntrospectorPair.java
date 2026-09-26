@@ -646,6 +646,12 @@ public class AnnotationIntrospectorPair
     }
 
     @Override
+    public Class<?> findCreatorFactory(MapperConfig<?> config, AnnotatedClass ac) {
+        Class<?> result = _primary.findCreatorFactory(config, ac);
+        return (result == null) ? _secondary.findCreatorFactory(config, ac) : result;
+    }
+
+    @Override
     public Class<?> findPOJOBuilder(MapperConfig<?> config, AnnotatedClass ac) {
         Class<?> result = _primary.findPOJOBuilder(config, ac);
         return (result == null) ? _secondary.findPOJOBuilder(config, ac) : result;

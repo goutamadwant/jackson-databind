@@ -1171,6 +1171,19 @@ public abstract class AnnotationIntrospector
     }
 
     /**
+     * Method for finding an external class that declares static Creator
+     * methods for constructing values of the given type.
+     *
+     * @return External Creator factory class, if configured; {@code null}
+     *   otherwise
+     *
+     * @since 3.3
+     */
+    public Class<?> findCreatorFactory(MapperConfig<?> config, AnnotatedClass ac) {
+        return null;
+    }
+
+    /**
      * Method for finding Builder object to use for constructing
      * value instance and binding data (sort of combining value
      * instantiators that can construct, and deserializers

@@ -1386,6 +1386,13 @@ public class JacksonAnnotationIntrospector
     }
 
     @Override
+    public Class<?> findCreatorFactory(MapperConfig<?> config, AnnotatedClass ac)
+    {
+        JsonDeserialize ann = _findAnnotation(ac, JsonDeserialize.class);
+        return (ann == null) ? null : _classIfExplicit(ann.creatorFactory());
+    }
+
+    @Override
     public Class<?> findPOJOBuilder(MapperConfig<?> config, AnnotatedClass ac)
     {
         JsonDeserialize ann = _findAnnotation(ac, JsonDeserialize.class);

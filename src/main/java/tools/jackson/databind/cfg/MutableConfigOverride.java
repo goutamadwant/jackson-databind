@@ -85,4 +85,16 @@ public class MutableConfigOverride
         _mergeable = v;
         return this;
     }
+
+    /**
+     * Set an external class containing static
+     * {@link com.fasterxml.jackson.annotation.JsonCreator}-annotated factory
+     * methods for constructing values of the configured type.
+     *
+     * @since 3.3
+     */
+    public MutableConfigOverride setCreatorFactory(Class<?> v) {
+        _creatorFactory = v;
+        return this;
+    }
 }
